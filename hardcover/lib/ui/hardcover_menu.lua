@@ -158,6 +158,14 @@ function HardcoverMenu:getSubMenuItems(book_view)
       separator = true
     },
     {
+      text = _("Suggest a book"),
+      callback = function()
+        self.hardcover:showRandomBookDialog()
+      end,
+      separator = true,
+      keep_menu_open = true
+    },
+    {
       text = _("Settings"),
       sub_item_table_func = function()
         return self:getSettingsSubMenuItems()
@@ -194,7 +202,9 @@ Settings:
       keep_menu_open = true
     }
   }
-  return _t.filter(menu_items, function(v) return v end)
+  return _t.filter(menu_items, function(v)
+    return v
+  end)
 end
 
 function HardcoverMenu:getVisibilitySubMenuItems()
@@ -242,8 +252,16 @@ function HardcoverMenu:getStatusSubMenuItems()
       checked_func = function()
         return self.state.book_status.status_id == HARDCOVER.STATUS.TO_READ
       end,
-      callback = function()
-        self.cache:updateBookStatus(self.ui.document.file, HARDCOVER.STATUS.TO_READ)
+      callback = function(menu_instance)
+        self.dialog_manager:maybeConfirm({
+          text = "Mark book as Want To Read?",
+          ok_callback = function()
+            self.cache:updateBookStatus(self.ui.document.file, HARDCOVER.STATUS.TO_READ)
+          end,
+          no_confirm_callback = function()
+            menu_instance:updateItems()
+          end
+        })
       end,
       radio = true
     },
@@ -255,8 +273,16 @@ function HardcoverMenu:getStatusSubMenuItems()
       checked_func = function()
         return self.state.book_status.status_id == HARDCOVER.STATUS.READING
       end,
-      callback = function()
-        self.cache:updateBookStatus(self.ui.document.file, HARDCOVER.STATUS.READING)
+      callback = function(menu_instance)
+        self.dialog_manager:maybeConfirm({
+          text = "Mark book as Currently Reading?",
+          ok_callback = function()
+            self.cache:updateBookStatus(self.ui.document.file, HARDCOVER.STATUS.READING)
+          end,
+          no_confirm_callback = function()
+            menu_instance:updateItems()
+          end
+        })
       end,
       radio = true
     },
@@ -268,8 +294,16 @@ function HardcoverMenu:getStatusSubMenuItems()
       checked_func = function()
         return self.state.book_status.status_id == HARDCOVER.STATUS.FINISHED
       end,
-      callback = function()
-        self.cache:updateBookStatus(self.ui.document.file, HARDCOVER.STATUS.FINISHED)
+      callback = function(menu_instance)
+        self.dialog_manager:maybeConfirm({
+          text = "Mark book as Read?",
+          ok_callback = function()
+            self.cache:updateBookStatus(self.ui.document.file, HARDCOVER.STATUS.FINISHED)
+          end,
+          no_confirm_callback = function()
+            menu_instance:updateItems()
+          end
+        })
       end,
       radio = true
     },
@@ -281,8 +315,16 @@ function HardcoverMenu:getStatusSubMenuItems()
       checked_func = function()
         return self.state.book_status.status_id == HARDCOVER.STATUS.DNF
       end,
-      callback = function()
-        self.cache:updateBookStatus(self.ui.document.file, HARDCOVER.STATUS.DNF)
+      callback = function(menu_instance)
+        self.dialog_manager:maybeConfirm({
+          text = "Mark book as Did Not Finish?",
+          ok_callback = function()
+            self.cache:updateBookStatus(self.ui.document.file, HARDCOVER.STATUS.DNF)
+          end,
+          no_confirm_callback = function()
+            menu_instance:updateItems()
+          end
+        })
       end,
       radio = true,
     },
@@ -292,11 +334,16 @@ function HardcoverMenu:getStatusSubMenuItems()
         return self.enabled and self.state.book_status.status_id ~= nil
       end,
       callback = function(menu_instance)
-        local result = Api:removeRead(self.state.book_status.id)
-        if result and result.id then
-          self.state.book_status = {}
-          menu_instance:updateItems()
-        end
+        self.dialog_manager:maybeConfirm({
+          text = "Remove current book status?",
+          ok_callback = function()
+            local result = Api:removeRead(self.state.book_status.id)
+            if result and result.id then
+              self.state.book_status = {}
+              menu_instance:updateItems()
+            end
+          end
+        })
       end,
       keep_menu_open = true,
       separator = true
@@ -623,6 +670,16 @@ function HardcoverMenu:getSettingsSubMenuItems()
       callback = function()
         local setting = self.settings:readSetting(SETTING.ENABLE_WIFI) == true
         self.settings:updateSetting(SETTING.ENABLE_WIFI, not setting)
+      end
+    },
+    {
+      text = "Confirm changes to book read status",
+      checked_func = function()
+        return self.settings:menuConfirm()
+      end,
+      callback = function()
+        local setting = self.settings:menuConfirm() == true
+        self.settings:setMenuConfirm(not setting)
       end
     },
     {

@@ -3,7 +3,9 @@ local json = require("json")
 
 local UIManager = require("ui/uimanager")
 
+local ConfirmBox = require("ui/widget/confirmbox")
 local InfoMessage = require("ui/widget/infomessage")
+local FileSearcher = require("apps/filemanager/filemanagerfilesearcher")
 
 local Api = require("hardcover/lib/hardcover_api")
 local Book = require("hardcover/lib/book")
@@ -78,6 +80,32 @@ function DialogManager:buildSearchDialog(title, items, active_item, book_callbac
   UIManager:show(self.search_dialog)
 end
 
+function DialogManager:confirm(options)
+  options.text = options.text or "Are you sure"
+
+  UIManager:show(ConfirmBox:new(options))
+end
+
+function DialogManager:maybeConfirm(options)
+  local original_callback = options.ok_callback
+
+  local manual_confirm_callback = options.no_confirm_callback
+  options.no_confirm_callback = nil
+
+  if self.settings:menuConfirm() then
+    options.ok_callback = function()
+      original_callback()
+      if manual_confirm_callback then
+        manual_confirm_callback()
+      end
+    end
+
+    self:confirm(options)
+  else
+    original_callback()
+  end
+end
+
 function DialogManager:buildBookListDialog(title, items, icon_callback, disable_wifi_after)
   if self.search_dialog then
     self.search_dialog:free()
@@ -89,6 +117,16 @@ function DialogManager:buildBookListDialog(title, items, icon_callback, disable_
     items = items,
     left_icon_callback = icon_callback,
     left_icon = "cre.render.reload",
+    select_book_cb = function(book)
+      local clean_title = book.title:gsub("^The ", ""):gsub("^An ", ""):gsub("^A ", ""):gsub(" ?%(%d+%)$", "")
+
+      FileSearcher.search_path = G_reader_settings:readSetting("home_dir")
+      FileSearcher.search_string = clean_title
+      self.ui.filesearcher.case_sensitive = false
+      self.ui.filesearcher.include_subfolders = true
+      self.ui.filesearcher.include_metadata = true
+      self.ui.filesearcher:doSearch()
+    end,
     close_callback = function()
       if disable_wifi_after then
         UIManager:nextTick(function()
@@ -113,6 +151,10 @@ function DialogManager:updateSearchResults(search)
 
   self.search_dialog:setItems(self.search_dialog.title, books, self.search_dialog.active_item)
   self.search_dialog.search_value = search
+end
+
+function DialogManager:updateRandomBooks(books)
+  self.search_dialog:setItems(self.search_dialog.title, books)
 end
 
 function DialogManager:journalEntryForm(text, document, page, remote_pages, mapped_page, event_type)

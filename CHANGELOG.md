@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.4.0 (2026-04-26)
+
+### Added
+
+* Added option to show a confirmation when changing a book's currently read status to reduce misclick issues
+
+## 0.3.1 (2026-02-18)
+
+### Added
+
+* Added support for [Updates Manager Plugin](https://github.com/advokatb/updatesmanager.koplugin) (min: v1.4.0)
+
+### Fixes
+
+* Fix page change gestures causing a refresh (even when there are no pages to navigate to) of the suggest a book, and
+  book/edition linking dialogs
+
+## 0.3.0 (2026-01-24)
+
+### Added
+
+* Added "suggest a book" to hardcover menu. Displays 10 books from your to-read list at random.
+* Plugin will now consider the `hardcover-slug` ebook identifier in addition to `hardcover` identifier (
+  by [@yd4dev](https://github.com/yd4dev))
+
+## Fixes
+
+* Fix page map crash when loading document formats that don't support page maps (like CBR)
+* Fix page map crash when document is out of range of the active page map
+
 ## 0.2.0 (2025-11-22)
 
 ### Added

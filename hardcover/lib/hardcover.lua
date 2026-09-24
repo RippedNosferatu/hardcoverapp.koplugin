@@ -6,6 +6,7 @@ local util = require("util")
 local UIManager = require("ui/uimanager")
 
 local Notification = require("ui/widget/notification")
+local InfoMessage = require("ui/widget/infomessage")
 
 local Api = require("hardcover/lib/hardcover_api")
 local Book = require("hardcover/lib/book")
@@ -46,6 +47,54 @@ function Hardcover:showLinkBookDialog(force_search, link_callback)
     end,
     search_value
   )
+end
+
+function Hardcover:cacheRandomBooks()
+  local user_id = User:getId()
+
+  local books, error = Api:getRandomToRead(user_id, 10)
+  if error then
+    UIManager:show(InfoMessage:new {
+      text = _("Error fetching to-read list"),
+      icon = "notice-warning",
+      timeout = 2
+    })
+    return
+  end
+
+  cache.random_books = books
+  return books
+end
+
+function Hardcover:showRandomBookDialog()
+  self.wifi:wifiPrompt(function(wifi_enabled)
+    local books = cache.random_books
+    if not books then
+      books = self:cacheRandomBooks()
+    end
+
+    if not cache.random_books or #cache.random_books == 0 then
+      UIManager:show(Notification:new {
+        text = "No books found on Want to Read list",
+        timeout = 4
+      })
+
+      if wifi_enabled then
+        UIManager:nextTick(function()
+          self.wifi:wifiDisablePrompt()
+        end)
+      end
+
+      return
+    end
+
+    self.dialog_manager:buildBookListDialog("Suggest a book", cache.random_books, function()
+      books = self:cacheRandomBooks()
+      if books then
+        self.dialog_manager:updateRandomBooks(books)
+      end
+    end, wifi_enabled)
+  end)
 end
 
 function Hardcover:updateCurrentBookStatus(status, privacy_setting_id)
@@ -142,9 +191,9 @@ function Hardcover:linkBookByIsbn(identifiers)
   if identifiers.isbn_10 or identifiers.isbn_13 then
     local user_id = User:getId()
     local book_lookup = Api:findBookByIdentifiers({
-        isbn_10 = identifiers.isbn_10,
-        isbn_13 = identifiers.isbn_13
-      },
+      isbn_10 = identifiers.isbn_10,
+      isbn_13 = identifiers.isbn_13
+    },
       user_id
     )
     if book_lookup then
@@ -185,8 +234,8 @@ function Hardcover:tryAutolink()
 
   local identifiers = Book:parseIdentifiers(props.identifiers)
   if ((identifiers.isbn_10 or identifiers.isbn_13) and self.settings:readSetting(SETTING.LINK_BY_ISBN))
-      or ((identifiers.book_slug or identifiers.edition_id) and self.settings:readSetting(SETTING.LINK_BY_HARDCOVER))
-      or (props.title and self.settings:readSetting(SETTING.LINK_BY_TITLE)) then
+    or ((identifiers.book_slug or identifiers.edition_id) and self.settings:readSetting(SETTING.LINK_BY_HARDCOVER))
+    or (props.title and self.settings:readSetting(SETTING.LINK_BY_TITLE)) then
     self.wifi:withWifi(function()
       self:_runAutolink(identifiers)
     end)
